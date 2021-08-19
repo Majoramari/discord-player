@@ -105,7 +105,7 @@ class Player extends EventEmitter<PlayerEvents> {
             return void this.emit("botDisconnect", queue);
         }
 
-        if (!queue.options.leaveOnEmpty || !queue.connection || !queue.connection.channel) return;
+        if (!queue.connection || !queue.connection.channel) return;
 
         if (!oldState.channelId || newState.channelId) {
             const emptyTimeout = queue._cooldownsTimeout.get(`empty_${oldState.guild.id}`);
@@ -120,7 +120,7 @@ class Player extends EventEmitter<PlayerEvents> {
             const timeout = setTimeout(() => {
                 if (!Util.isVoiceEmpty(queue.connection.channel)) return;
                 if (!this.queues.has(queue.guild.id)) return;
-                queue.destroy();
+                if (queue.options.leaveOnEmpty) queue.destroy();
                 this.emit("channelEmpty", queue);
             }, queue.options.leaveOnEmptyCooldown || 0).unref();
             queue._cooldownsTimeout.set(`empty_${oldState.guild.id}`, timeout);
@@ -133,7 +133,7 @@ class Player extends EventEmitter<PlayerEvents> {
      * @param {PlayerOptions} queueInitOptions Queue init options
      * @returns {Queue}
      */
-    createQueue<T = unknown>(guild: GuildResolvable, queueInitOptions: PlayerOptions & { metadata?: T } = {}): Queue<T> {
+    createQueue<T = unknown>(guild: GuildResolvable, queueInitOptions: PlayerOptions & { metadata?: T; } = {}): Queue<T> {
         guild = this.client.guilds.resolve(guild);
         if (!guild) throw new PlayerError("Unknown Guild", ErrorStatusCode.UNKNOWN_GUILD);
         if (this.queues.has(guild.id)) return this.queues.get(guild.id) as Queue<T>;
@@ -171,7 +171,7 @@ class Player extends EventEmitter<PlayerEvents> {
 
         try {
             prev.destroy();
-        } catch {} // eslint-disable-line no-empty
+        } catch { } // eslint-disable-line no-empty
         this.queues.delete(guild.id);
 
         return prev;
@@ -203,9 +203,9 @@ class Player extends EventEmitter<PlayerEvents> {
                 const playlist = !data.playlist
                     ? null
                     : new Playlist(this, {
-                          ...data.playlist,
-                          tracks: []
-                      });
+                        ...data.playlist,
+                        tracks: []
+                    });
 
                 const tracks = data.data.map(
                     (m) =>
@@ -331,13 +331,13 @@ class Player extends EventEmitter<PlayerEvents> {
                     author:
                         spotifyPlaylist.type !== "playlist"
                             ? {
-                                  name: spotifyPlaylist.artists[0]?.name ?? "Unknown Artist",
-                                  url: spotifyPlaylist.artists[0]?.external_urls?.spotify ?? null
-                              }
+                                name: spotifyPlaylist.artists[0]?.name ?? "Unknown Artist",
+                                url: spotifyPlaylist.artists[0]?.external_urls?.spotify ?? null
+                            }
                             : {
-                                  name: spotifyPlaylist.owner?.display_name ?? spotifyPlaylist.owner?.id ?? "Unknown Artist",
-                                  url: spotifyPlaylist.owner?.external_urls?.spotify ?? null
-                              },
+                                name: spotifyPlaylist.owner?.display_name ?? spotifyPlaylist.owner?.id ?? "Unknown Artist",
+                                url: spotifyPlaylist.owner?.external_urls?.spotify ?? null
+                            },
                     tracks: [],
                     id: spotifyPlaylist.id,
                     url: spotifyPlaylist.external_urls?.spotify ?? query,
